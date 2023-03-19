@@ -2,9 +2,11 @@ package logfind
 
 import (
 	"go/ast"
+	"go/types"
 	"strconv"
 	"strings"
 
+	"github.com/gostaticanalysis/analysisutil"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
@@ -24,15 +26,18 @@ var Analyzer = &analysis.Analyzer{
 
 func run(pass *analysis.Pass) (any, error) {
 	comments := getCommentMap(pass)
+	objmp := getImportObj(pass)
+	types := pass.TypesInfo
+
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
-	nodeFilter := []ast.Node{
-		(*ast.Ident)(nil),
-	}
-
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Preorder(nil, func(n ast.Node) {
 		switch n := n.(type) {
-		case *ast.Ident:
+		case *ast.CallExpr:
+			value, ok := n.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return
+			}
 			var nocheck bool
 			pos := pass.Fset.Position(n.Pos())
 			c, ok := comments[pos.Filename+"_"+strconv.Itoa(pos.Line)]
@@ -41,7 +46,9 @@ func run(pass *analysis.Pass) (any, error) {
 					nocheck = true
 				}
 			}
-			if n.Name == "log" && !nocheck {
+			_, ok = objmp[types.ObjectOf(value.Sel)]
+
+			if ok && !nocheck {
 				pass.Reportf(n.Pos(), "here log")
 			}
 		}
@@ -61,6 +68,31 @@ func getCommentMap(pass *analysis.Pass) map[string]string {
 			}
 		}
 	}
+
+	return mp
+}
+
+func getImportObj(pass *analysis.Pass) map[types.Object]bool {
+	var mp = make(map[types.Object]bool)
+	pkgs := pass.Pkg.Imports()
+	obj := analysisutil.LookupFromImports(pkgs, "log", "Print")
+	mp[obj] = true
+	obj = analysisutil.LookupFromImports(pkgs, "log", "Println")
+	mp[obj] = true
+	obj = analysisutil.LookupFromImports(pkgs, "log", "Printf")
+	mp[obj] = true
+	obj = analysisutil.LookupFromImports(pkgs, "log", "Fatal")
+	mp[obj] = true
+	obj = analysisutil.LookupFromImports(pkgs, "log", "Fatalln")
+	mp[obj] = true
+	obj = analysisutil.LookupFromImports(pkgs, "log", "Fatalf")
+	mp[obj] = true
+	obj = analysisutil.LookupFromImports(pkgs, "log", "Panicf")
+	mp[obj] = true
+	obj = analysisutil.LookupFromImports(pkgs, "log", "Panic")
+	mp[obj] = true
+	obj = analysisutil.LookupFromImports(pkgs, "log", "Panicln")
+	mp[obj] = true
 
 	return mp
 }
