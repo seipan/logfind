@@ -1,3 +1,4 @@
+[![go](https://github.com/seipan/logfind/actions/workflows/go.yml/badge.svg)](https://github.com/seipan/logfind/actions/workflows/go.yml)
 # logfind
 This oss will find things like log.Println(), which you wrote for debugging but often forget to erase. 
 ## Install
