@@ -3,7 +3,7 @@
 This oss will find things like log.Println(), which you wrote for debugging but often forget to erase. 
 ## Install
 ```go
-go get github.com/seipan/logfind/cmd/logfind
+go install github.com/seipan/logfind/cmd/logfind
 ```
 
 ## Use
